@@ -1,0 +1,30 @@
+[
+  {
+    "Question": "What is the primary charge in case CCDA-2024-761250?",
+    "ExpectedCaseId": "CCDA-2024-761250",
+    "ExpectedSourceFile": "CCDA-2024-761250_CaseSummary.pdf",
+    "ExpectedDocumentType": "CaseSummary",
+    "ExpectedKeyphrase": "charge"
+  },
+  {
+    "Question": "When was the defendant arrested in case CCDA-2024-761250?",
+    "ExpectedCaseId": "CCDA-2024-761250",
+    "ExpectedSourceFile": "CCDA-2024-761250_CaseSummary.pdf",
+    "ExpectedDocumentType": "CaseSummary",
+    "ExpectedKeyphrase": "arrest"
+  },
+  {
+    "Question": "Who is the assigned prosecutor for case CCDA-2024-761250?",
+    "ExpectedCaseId": "CCDA-2024-761250",
+    "ExpectedSourceFile": "CCDA-2024-761250_CaseSummary.pdf",
+    "ExpectedDocumentType": "CaseSummary",
+    "ExpectedKeyphrase": "prosecutor"
+  },
+  {
+    "Question": "What did witnesses report in case CCDA-2024-761250?",
+    "ExpectedCaseId": "CCDA-2024-761250",
+    "ExpectedSourceFile": "CCDA-2024-761250_WitnessStatement.pdf",
+    "ExpectedDocumentType": "WitnessStatement",
+    "ExpectedKeyphrase": "witness"
+  }
+]

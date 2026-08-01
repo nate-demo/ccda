@@ -1,0 +1,54 @@
+<!--
+  CCDA Case Review API policy.
+
+  Security posture for the demo:
+    * Subscription key (Ocp-Apim-Subscription-Key) is required by the product.
+    * A validate-jwt template for Microsoft Entra ID is included but commented
+      out — supply the tenant id + audience (api://<app-id>) to enforce OAuth2
+      for the ASP.NET Core web app and the Copilot Studio custom connector.
+    * Per-subscription rate limiting + a daily quota protect the backend.
+    * The backend service URL is set by the Bicep module (the API behind APIM).
+-->
+<policies>
+  <inbound>
+    <base />
+
+    <!--
+      Enable OAuth2 (Microsoft Entra ID) by uncommenting and filling in the
+      {tenant-id} and api://{app-id} audience. Copilot Studio and the web app
+      obtain tokens for this audience via their own app registrations.
+
+    <validate-jwt header-name="Authorization" failed-validation-httpcode="401"
+                  failed-validation-error-message="Unauthorized. A valid Entra ID token is required.">
+      <openid-config url="https://login.microsoftonline.com/{tenant-id}/v2.0/.well-known/openid-configuration" />
+      <audiences>
+        <audience>api://{app-id}</audience>
+      </audiences>
+      <issuers>
+        <issuer>https://sts.windows.net/{tenant-id}/</issuer>
+      </issuers>
+    </validate-jwt>
+    -->
+
+    <!-- Per-caller throttling keyed by subscription. -->
+    <rate-limit-by-key calls="120" renewal-period="60"
+                       counter-key="@(context.Subscription?.Id ?? context.Request.IpAddress)" />
+    <quota-by-key calls="5000" renewal-period="86400"
+                  counter-key="@(context.Subscription?.Id ?? context.Request.IpAddress)" />
+
+    <!-- Route to the CCDA API backend registered by the Bicep module. -->
+    <set-backend-service backend-id="ccda-api" />
+  </inbound>
+  <backend>
+    <base />
+  </backend>
+  <outbound>
+    <base />
+    <!-- Never leak backend server details. -->
+    <set-header name="X-Powered-By" exists-action="delete" />
+    <set-header name="Server" exists-action="delete" />
+  </outbound>
+  <on-error>
+    <base />
+  </on-error>
+</policies>

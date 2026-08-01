@@ -1,0 +1,30 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentParameters.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "namePrefix": {
+      "value": "ccda"
+    },
+    "publisherEmail": {
+      "value": "da-demo@contoso-county.example"
+    },
+    "publisherName": {
+      "value": "Contoso County District Attorney (Demo)"
+    },
+    "chatModelName": {
+      "value": "gpt-4o-mini"
+    },
+    "embeddingModelName": {
+      "value": "text-embedding-3-small"
+    },
+    "searchSku": {
+      "value": "standard"
+    },
+    "deployApim": {
+      "value": true
+    },
+    "apiBackendUrl": {
+      "value": "https://ccda-api.azurewebsites.net"
+    }
+  }
+}

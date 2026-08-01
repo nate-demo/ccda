@@ -1,0 +1,135 @@
+# Continuous integration for the CCDA AI Case Review Platform.
+# Restores, builds, and tests the .NET 10 Aspire solution, and lint-validates the
+# infrastructure Bicep. All third-party actions are pinned to immutable commit SHAs.
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+# Least privilege: the workflow only needs to read repository contents.
+permissions:
+  contents: read
+
+# Cancel superseded runs on the same ref to save runner minutes.
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-test:
+    name: Build & test (.NET 10)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          fetch-depth: 1
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
+        with:
+          global-json-file: global.json
+
+      - name: Cache NuGet packages
+        uses: actions/cache@668228422ae6a00e4ad889ee87cd7109ec5666a7 # v5.0.4
+        with:
+          path: ~/.nuget/packages
+          key: ${{ runner.os }}-nuget-${{ hashFiles('**/*.csproj', 'Directory.Build.props', 'Directory.Packages.props') }}
+          restore-keys: |
+            ${{ runner.os }}-nuget-
+
+      - name: Restore
+        run: dotnet restore CCDA.slnx
+
+      - name: Build
+        run: dotnet build CCDA.slnx --configuration Release --no-restore
+
+      - name: Test
+        run: >
+          dotnet test CCDA.slnx
+          --configuration Release
+          --no-build
+          --logger "trx;LogFileName=test-results.trx"
+          --results-directory ${{ github.workspace }}/test-results
+
+      - name: Upload test results
+        if: ${{ always() }}
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: test-results
+          path: ${{ github.workspace }}/test-results
+          if-no-files-found: ignore
+          retention-days: 7
+
+  data-smoke:
+    name: Generator smoke (deterministic seed 42)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    needs: build-test
+    steps:
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          fetch-depth: 1
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
+        with:
+          global-json-file: global.json
+
+      - name: Cache NuGet packages
+        uses: actions/cache@668228422ae6a00e4ad889ee87cd7109ec5666a7 # v5.0.4
+        with:
+          path: ~/.nuget/packages
+          key: ${{ runner.os }}-nuget-${{ hashFiles('**/*.csproj', 'Directory.Build.props', 'Directory.Packages.props') }}
+          restore-keys: |
+            ${{ runner.os }}-nuget-
+
+      - name: Generate deterministic demo case
+        run: >
+          dotnet run --project src/CCDA.DataGen.Cli/CCDA.DataGen.Cli.csproj
+          --configuration Release --
+          generate-case --seed 42 --complexity Medium --output case-seed42-report.json
+
+      - name: Verify determinism against committed sample
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          import json, sys
+          with open("case-seed42-report.json") as f:
+              fresh = json.load(f)
+          with open("sample-data/case-seed42-report.json") as f:
+              committed = json.load(f)
+          # GeneratedAt is a wall-clock stamp; everything else is seed-deterministic.
+          keys = ["CasesGenerated", "DocumentsGenerated", "PagesGenerated",
+                  "ChunksCreated", "RetrievalValidation", "IndexStatus", "Seed", "CaseIds"]
+          mismatches = {k: (committed.get(k), fresh.get(k)) for k in keys
+                        if committed.get(k) != fresh.get(k)}
+          if mismatches:
+              print("Determinism check FAILED:", json.dumps(mismatches, indent=2))
+              sys.exit(1)
+          print(f"Determinism check passed — case {fresh['CaseIds']}, "
+                f"{fresh['ChunksCreated']} chunks, retrieval {fresh['RetrievalValidation']}.")
+          PY
+
+  infra-lint:
+    name: Bicep lint
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          fetch-depth: 1
+
+      - name: Validate Bicep templates
+        shell: bash
+        run: |
+          az bicep install
+          az bicep build --file infra/main.bicep
+          echo "Bicep build succeeded — templates are valid."

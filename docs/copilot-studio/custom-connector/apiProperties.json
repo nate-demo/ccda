@@ -1,0 +1,25 @@
+{
+  "properties": {
+    "connectionParameters": {
+      "api_key": {
+        "type": "securestring",
+        "uiDefinition": {
+          "displayName": "APIM subscription key",
+          "description": "The Ocp-Apim-Subscription-Key issued for the CCDA product in API Management.",
+          "tooltip": "Paste the subscription key from the APIM developer portal.",
+          "constraints": {
+            "tabIndex": 4,
+            "clearText": false,
+            "required": "true"
+          }
+        }
+      }
+    },
+    "iconBrandColor": "#0F6CBD",
+    "scriptOperations": [],
+    "capabilities": [],
+    "policyTemplateInstances": [],
+    "publisher": "CCDA Demo",
+    "stackOwner": "Contoso County District Attorney (Demo)"
+  }
+}

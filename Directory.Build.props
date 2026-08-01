@@ -1,0 +1,23 @@
+<Project>
+
+  <!--
+    Shared MSBuild properties for the CCDA solution.
+    Individual projects set their own <TargetFramework>.
+    All CCDA sample content is FICTIONAL and FOR DEMONSTRATION PURPOSES ONLY.
+  -->
+  <PropertyGroup>
+    <LangVersion>latest</LangVersion>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <TreatWarningsAsErrors>false</TreatWarningsAsErrors>
+    <GenerateDocumentationFile>false</GenerateDocumentationFile>
+    <Deterministic>true</Deterministic>
+
+    <Product>Contoso County District Attorney (CCDA) AI Case Review Platform</Product>
+    <Company>Contoso (fictional demonstration)</Company>
+    <Authors>CCDA Demo Team</Authors>
+    <Version>0.1.0</Version>
+    <NeutralLanguage>en-US</NeutralLanguage>
+  </PropertyGroup>
+
+</Project>

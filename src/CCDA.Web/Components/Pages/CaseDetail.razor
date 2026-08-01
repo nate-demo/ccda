@@ -1,0 +1,297 @@
+@page "/cases/{CaseId}"
+@rendermode InteractiveServer
+@inject CcdaApiClient Api
+
+<PageTitle>@CaseId — CCDA</PageTitle>
+
+<FictionalDataBanner />
+
+@if (loadError is not null)
+{
+    <div class="alert alert-danger">@loadError</div>
+    <a class="btn btn-outline-secondary btn-sm" href="cases">← Back to cases</a>
+}
+else if (detail is null)
+{
+    <p class="text-muted">Loading case…</p>
+}
+else
+{
+    <div class="d-flex align-items-center justify-content-between mb-2">
+        <h1 class="h3 mb-0">@detail.Title</h1>
+        <a class="btn btn-outline-secondary btn-sm" href="cases">← All cases</a>
+    </div>
+    <div class="mb-3 text-muted">
+        <span class="fw-semibold">@detail.CaseId</span>
+        <span class="badge text-bg-light ms-2">@detail.CaseType</span>
+        <span class="badge text-bg-light">@detail.Complexity</span>
+        <span class="badge text-bg-light">@detail.Status</span>
+        <span class="ms-2">@detail.DocumentCount documents · @detail.PageCount pages</span>
+        <span class="badge text-bg-secondary ms-2">@detail.Classification</span>
+    </div>
+
+    <div class="card mb-4">
+        <div class="card-header py-2"><span class="bi bi-files" aria-hidden="true"></span> Documents</div>
+        <ul class="list-group list-group-flush">
+            @foreach (var doc in detail.Documents)
+            {
+                <li class="list-group-item d-flex justify-content-between">
+                    <span>@doc.Title <span class="text-muted small">· @doc.SourceFile</span></span>
+                    <span class="text-muted small">@doc.DocumentType · @doc.PageCount pages</span>
+                </li>
+            }
+        </ul>
+    </div>
+
+    <h2 class="h5">AI review <span class="text-muted small">(grounded &amp; cited)</span></h2>
+    <div class="btn-group btn-group-sm mb-3 flex-wrap" role="group">
+        <button class="btn btn-outline-primary" @onclick="LoadSummaryAsync" disabled="@busy">Summary</button>
+        <button class="btn btn-outline-primary" @onclick="LoadBriefingAsync" disabled="@busy">Briefing</button>
+        <button class="btn btn-outline-primary" @onclick="LoadTimelineAsync" disabled="@busy">Timeline</button>
+        <button class="btn btn-outline-primary" @onclick="LoadCitationsAsync" disabled="@busy">All citations</button>
+    </div>
+
+    @if (busy)
+    {
+        <p class="text-muted"><span class="spinner-border spinner-border-sm me-1" aria-hidden="true"></span> Working…</p>
+    }
+
+    @if (actionError is not null)
+    {
+        <div class="alert alert-danger small">@actionError</div>
+    }
+
+    @if (summary is not null)
+    {
+        <div class="card mb-3">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-start">
+                    <h3 class="h6">Case summary</h3>
+                    <ConfidenceBadge Assessment="summary.Confidence" />
+                </div>
+                <p style="white-space: pre-wrap;">@summary.Summary</p>
+                @if (summary.KeyPoints.Count > 0)
+                {
+                    <ul>@foreach (var p in summary.KeyPoints) { <li>@p</li> }</ul>
+                }
+                <CitationList Citations="summary.Citations" />
+            </div>
+        </div>
+    }
+
+    @if (briefing is not null)
+    {
+        <div class="card mb-3">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-start">
+                    <h3 class="h6">Prosecutorial briefing</h3>
+                    <ConfidenceBadge Assessment="briefing.Confidence" />
+                </div>
+                <p style="white-space: pre-wrap;">@briefing.ExecutiveSummary</p>
+                @RenderList("Key findings", briefing.KeyFindings)
+                @RenderList("Risks", briefing.Risks)
+                @RenderList("Recommendations", briefing.Recommendations)
+                <CitationList Citations="briefing.Citations" />
+            </div>
+        </div>
+    }
+
+    @if (timeline is not null)
+    {
+        <div class="card mb-3">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-start">
+                    <h3 class="h6">Timeline</h3>
+                    <ConfidenceBadge Assessment="timeline.Confidence" />
+                </div>
+                @if (timeline.Events.Count == 0)
+                {
+                    <p class="text-muted small mb-0">No dated events were extracted.</p>
+                }
+                else
+                {
+                    <ul class="list-group list-group-flush">
+                        @foreach (var e in timeline.Events)
+                        {
+                            <li class="list-group-item px-0">
+                                <span class="badge text-bg-light me-2">@(e.Date?.ToString("yyyy-MM-dd") ?? (string.IsNullOrWhiteSpace(e.DateText) ? "Undated" : e.DateText))</span>
+                                @e.Title
+                                @if (e.Citations.Count > 0)
+                                {
+                                    <span class="text-muted small ms-1">(@e.Citations.Count citation@(e.Citations.Count == 1 ? "" : "s"))</span>
+                                }
+                            </li>
+                        }
+                    </ul>
+                }
+            </div>
+        </div>
+    }
+
+    @if (citations is not null)
+    {
+        <div class="card mb-3">
+            <div class="card-body">
+                <h3 class="h6">All citable sources (@citations.Count)</h3>
+                <CitationList Citations="citations.Citations" />
+            </div>
+        </div>
+    }
+
+    <div class="card mb-3">
+        <div class="card-body">
+            <h3 class="h6">Ask a question about this case</h3>
+            <div class="input-group">
+                <input class="form-control" placeholder="e.g. What evidence links the defendant to the scene?"
+                       @bind="question" @bind:event="oninput" @onkeydown="OnQuestionKeyDown" disabled="@asking" />
+                <button class="btn btn-primary" @onclick="AskAsync" disabled="@(asking || string.IsNullOrWhiteSpace(question))">
+                    @if (asking)
+                    {
+                        <span class="spinner-border spinner-border-sm" aria-hidden="true"></span>
+                    }
+                    else
+                    {
+                        <span>Ask</span>
+                    }
+                </button>
+            </div>
+
+            @if (answer is not null)
+            {
+                <div class="mt-3">
+                    <div class="d-flex justify-content-between align-items-start">
+                        <div class="fw-semibold">Q: @answer.Question</div>
+                        <ConfidenceBadge Assessment="answer.Confidence" />
+                    </div>
+                    <p class="mt-1" style="white-space: pre-wrap;">@answer.Answer</p>
+                    <CitationList Citations="answer.Citations" />
+                    @if (answer.FollowUpSuggestions.Count > 0)
+                    {
+                        <div class="mt-2 small text-muted">
+                            Follow-ups: @string.Join(" · ", answer.FollowUpSuggestions)
+                        </div>
+                    }
+                </div>
+            }
+        </div>
+    </div>
+}
+
+@code {
+    [Parameter]
+    public string CaseId { get; set; } = string.Empty;
+
+    private CaseDetailResponse? detail;
+    private string? loadError;
+
+    private bool busy;
+    private string? actionError;
+    private CaseSummaryResult? summary;
+    private CaseBriefingResult? briefing;
+    private CaseTimelineResult? timeline;
+    private CitationsResponse? citations;
+
+    private string question = string.Empty;
+    private bool asking;
+    private LegalAnswerResult? answer;
+
+    protected override async Task OnParametersSetAsync()
+    {
+        detail = null;
+        loadError = null;
+        summary = null;
+        briefing = null;
+        timeline = null;
+        citations = null;
+        answer = null;
+
+        try
+        {
+            detail = await Api.GetCaseAsync(CaseId);
+            if (detail is null)
+            {
+                loadError = $"Case '{CaseId}' was not found.";
+            }
+        }
+        catch (Exception ex)
+        {
+            loadError = $"Could not load the case: {ex.Message}";
+        }
+    }
+
+    private async Task LoadSummaryAsync() => await RunAsync(async () => summary = await Api.SummarizeAsync(CaseId));
+
+    private async Task LoadBriefingAsync() => await RunAsync(async () => briefing = await Api.BriefingAsync(CaseId));
+
+    private async Task LoadTimelineAsync() => await RunAsync(async () => timeline = await Api.TimelineAsync(CaseId));
+
+    private async Task LoadCitationsAsync() => await RunAsync(async () => citations = await Api.GetCitationsAsync(CaseId));
+
+    private async Task RunAsync(Func<Task> action)
+    {
+        busy = true;
+        actionError = null;
+        try
+        {
+            await action();
+        }
+        catch (Exception ex)
+        {
+            actionError = $"Request failed: {ex.Message}";
+        }
+        finally
+        {
+            busy = false;
+        }
+    }
+
+    private async Task OnQuestionKeyDown(KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter" && !asking && !string.IsNullOrWhiteSpace(question))
+        {
+            await AskAsync();
+        }
+    }
+
+    private async Task AskAsync()
+    {
+        asking = true;
+        actionError = null;
+        try
+        {
+            answer = await Api.AskAsync(new ChatRequest { CaseId = CaseId, Question = question });
+        }
+        catch (Exception ex)
+        {
+            actionError = $"Question failed: {ex.Message}";
+        }
+        finally
+        {
+            asking = false;
+        }
+    }
+
+    private static RenderFragment RenderList(string heading, IReadOnlyList<string> items) => builder =>
+    {
+        if (items.Count == 0)
+        {
+            return;
+        }
+
+        builder.OpenElement(0, "h4");
+        builder.AddAttribute(1, "class", "h6 mt-3");
+        builder.AddContent(2, heading);
+        builder.CloseElement();
+
+        builder.OpenElement(3, "ul");
+        var seq = 4;
+        foreach (var item in items)
+        {
+            builder.OpenElement(seq++, "li");
+            builder.AddContent(seq++, item);
+            builder.CloseElement();
+        }
+
+        builder.CloseElement();
+    };
+}

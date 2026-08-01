@@ -1,0 +1,16 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/CCDA.AI/CCDA.AI.csproj" />
+    <Project Path="src/CCDA.Api/CCDA.Api.csproj" />
+    <Project Path="src/CCDA.AppHost/CCDA.AppHost.csproj" />
+    <Project Path="src/CCDA.DataGen.Cli/CCDA.DataGen.Cli.csproj" />
+    <Project Path="src/CCDA.DataGen/CCDA.DataGen.csproj" />
+    <Project Path="src/CCDA.Search/CCDA.Search.csproj" />
+    <Project Path="src/CCDA.ServiceDefaults/CCDA.ServiceDefaults.csproj" />
+    <Project Path="src/CCDA.Shared/CCDA.Shared.csproj" />
+    <Project Path="src/CCDA.Web/CCDA.Web.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/CCDA.Tests/CCDA.Tests.csproj" />
+  </Folder>
+</Solution>

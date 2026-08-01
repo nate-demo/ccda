@@ -1,0 +1,203 @@
+openapi: 3.0.1
+info:
+  title: CCDA Case Review API
+  version: v1
+  description: >-
+    Contoso County District Attorney AI case-review API. Every AI response is
+    citation-first and carries a confidence assessment. FOR DEMONSTRATION
+    PURPOSES ONLY — FICTIONAL CASE DATA. AI assists attorney review; it does
+    not replace attorney judgment.
+servers:
+  - url: https://api.example.com
+    description: Placeholder; APIM sets the real backend service URL.
+paths:
+  /api/v1/cases/upload:
+    post:
+      operationId: UploadCase
+      summary: Ingest a case and its documents into the search index.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+      responses:
+        '200':
+          description: The case was indexed.
+          content:
+            application/json:
+              schema:
+                type: object
+  /api/v1/cases:
+    get:
+      operationId: ListCases
+      summary: List all ingested cases (most recent first).
+      responses:
+        '200':
+          description: A list of case detail records.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+  /api/v1/cases/{caseId}:
+    get:
+      operationId: GetCase
+      summary: Get case detail (metadata + documents) without full page text.
+      parameters:
+        - name: caseId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: The case detail.
+          content:
+            application/json:
+              schema:
+                type: object
+        '404':
+          description: The case was not found.
+  /api/v1/cases/{caseId}/citations:
+    get:
+      operationId: GetCaseCitations
+      summary: List every citable source page reference for a case.
+      parameters:
+        - name: caseId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: The citation catalog.
+          content:
+            application/json:
+              schema:
+                type: object
+        '404':
+          description: The case was not found.
+  /api/v1/cases/summarize:
+    post:
+      operationId: SummarizeCase
+      summary: Produce a grounded, citation-backed case summary.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                caseId:
+                  type: string
+      responses:
+        '200':
+          description: A grounded summary with citations and confidence.
+          content:
+            application/json:
+              schema:
+                type: object
+  /api/v1/cases/timeline:
+    post:
+      operationId: BuildCaseTimeline
+      summary: Extract a grounded, citation-backed chronological timeline.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                caseId:
+                  type: string
+      responses:
+        '200':
+          description: A cited chronological timeline.
+          content:
+            application/json:
+              schema:
+                type: object
+  /api/v1/cases/briefing:
+    post:
+      operationId: BuildCaseBriefing
+      summary: Produce a grounded prosecutorial briefing.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                caseId:
+                  type: string
+      responses:
+        '200':
+          description: A grounded briefing with findings, risks, and recommendations.
+          content:
+            application/json:
+              schema:
+                type: object
+  /api/v1/cases/chat:
+    post:
+      operationId: AskCase
+      summary: Answer a grounded legal question with page-level citations.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                caseId:
+                  type: string
+                question:
+                  type: string
+                history:
+                  type: array
+                  items:
+                    type: object
+              required:
+                - question
+      responses:
+        '200':
+          description: A grounded answer with citations and confidence.
+          content:
+            application/json:
+              schema:
+                type: object
+  /api/v1/cases/generate-demo-data:
+    post:
+      operationId: GenerateDemoData
+      summary: Generate, index, and validate a synthetic demo case (fictional data).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                caseType:
+                  type: string
+                complexity:
+                  type: string
+                pages:
+                  type: integer
+                seed:
+                  type: integer
+      responses:
+        '200':
+          description: The generation report.
+          content:
+            application/json:
+              schema:
+                type: object
+components:
+  securitySchemes:
+    apiKeyHeader:
+      type: apiKey
+      name: Ocp-Apim-Subscription-Key
+      in: header
+security:
+  - apiKeyHeader: []

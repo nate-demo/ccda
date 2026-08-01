@@ -1,0 +1,604 @@
+{
+  "swagger": "2.0",
+  "info": {
+    "title": "CCDA Case Review",
+    "description": "Citation-first legal case-review API for the Contoso County District Attorney (CCDA) demo. Every AI response returns grounded source citations (document + page) and a confidence assessment. FOR DEMONSTRATION PURPOSES ONLY - FICTIONAL CASE DATA. AI assists attorney review; it does not replace attorney judgment.",
+    "version": "v1",
+    "contact": {
+      "name": "CCDA Demo",
+      "email": "da-demo@contoso-county.example"
+    }
+  },
+  "host": "REPLACE-WITH-APIM-HOST.azure-api.net",
+  "basePath": "/ccda",
+  "schemes": [
+    "https"
+  ],
+  "consumes": [
+    "application/json"
+  ],
+  "produces": [
+    "application/json"
+  ],
+  "paths": {
+    "/api/v1/cases": {
+      "get": {
+        "operationId": "ListCases",
+        "summary": "List cases",
+        "description": "List all ingested cases, most recent first.",
+        "responses": {
+          "200": {
+            "description": "Cases returned.",
+            "schema": {
+              "type": "array",
+              "items": {
+                "$ref": "#/definitions/CaseDetail"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/cases/{caseId}": {
+      "get": {
+        "operationId": "GetCase",
+        "summary": "Get case detail",
+        "description": "Get a case's metadata and document list.",
+        "parameters": [
+          {
+            "name": "caseId",
+            "in": "path",
+            "required": true,
+            "type": "string",
+            "description": "The case identifier, e.g. CCDA-2024-761250."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The case detail.",
+            "schema": {
+              "$ref": "#/definitions/CaseDetail"
+            }
+          },
+          "404": {
+            "description": "The case was not found."
+          }
+        }
+      }
+    },
+    "/api/v1/cases/{caseId}/citations": {
+      "get": {
+        "operationId": "GetCaseCitations",
+        "summary": "List case citations",
+        "description": "List every citable source page reference for a case.",
+        "parameters": [
+          {
+            "name": "caseId",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The citation catalog.",
+            "schema": {
+              "$ref": "#/definitions/CitationsResponse"
+            }
+          },
+          "404": {
+            "description": "The case was not found."
+          }
+        }
+      }
+    },
+    "/api/v1/cases/summarize": {
+      "post": {
+        "operationId": "SummarizeCase",
+        "summary": "Summarize a case",
+        "description": "Produce a grounded, citation-backed case summary.",
+        "parameters": [
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/CaseIdRequest"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A grounded summary with citations and a confidence assessment.",
+            "schema": {
+              "$ref": "#/definitions/SummaryResult"
+            }
+          },
+          "404": {
+            "description": "The case was not found."
+          }
+        }
+      }
+    },
+    "/api/v1/cases/timeline": {
+      "post": {
+        "operationId": "BuildCaseTimeline",
+        "summary": "Build a case timeline",
+        "description": "Extract a grounded, citation-backed chronological timeline.",
+        "parameters": [
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/CaseIdRequest"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A cited chronological timeline.",
+            "schema": {
+              "$ref": "#/definitions/TimelineResult"
+            }
+          },
+          "404": {
+            "description": "The case was not found."
+          }
+        }
+      }
+    },
+    "/api/v1/cases/briefing": {
+      "post": {
+        "operationId": "BuildCaseBriefing",
+        "summary": "Build a prosecutorial briefing",
+        "description": "Produce a grounded briefing with findings, risks, and recommendations.",
+        "parameters": [
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/CaseIdRequest"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A grounded briefing.",
+            "schema": {
+              "$ref": "#/definitions/BriefingResult"
+            }
+          },
+          "404": {
+            "description": "The case was not found."
+          }
+        }
+      }
+    },
+    "/api/v1/cases/chat": {
+      "post": {
+        "operationId": "AskCase",
+        "summary": "Ask a grounded legal question",
+        "description": "Answer a legal question with page-level citations. Provide a caseId to scope the answer to a single case.",
+        "parameters": [
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/ChatRequest"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A grounded answer with citations and confidence.",
+            "schema": {
+              "$ref": "#/definitions/AnswerResult"
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/cases/generate-demo-data": {
+      "post": {
+        "operationId": "GenerateDemoData",
+        "summary": "Generate a demo case",
+        "description": "Generate, index, and validate a synthetic demo case. All data is fictional and watermarked.",
+        "parameters": [
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/GenerateDemoDataRequest"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The generation report.",
+            "schema": {
+              "$ref": "#/definitions/GenerateDemoDataResponse"
+            }
+          }
+        }
+      }
+    }
+  },
+  "definitions": {
+    "CaseIdRequest": {
+      "type": "object",
+      "required": [
+        "caseId"
+      ],
+      "properties": {
+        "caseId": {
+          "type": "string",
+          "description": "The case identifier, e.g. CCDA-2024-761250.",
+          "x-ms-summary": "Case ID"
+        }
+      }
+    },
+    "ChatRequest": {
+      "type": "object",
+      "required": [
+        "question"
+      ],
+      "properties": {
+        "caseId": {
+          "type": "string",
+          "description": "Optional case to scope the answer to.",
+          "x-ms-summary": "Case ID"
+        },
+        "question": {
+          "type": "string",
+          "description": "The legal question to answer.",
+          "x-ms-summary": "Question"
+        }
+      }
+    },
+    "GenerateDemoDataRequest": {
+      "type": "object",
+      "properties": {
+        "caseType": {
+          "type": "string",
+          "description": "Optional case type.",
+          "x-ms-summary": "Case Type",
+          "enum": [
+            "Fraud",
+            "Burglary",
+            "OrganizedCrime",
+            "FinancialCrime",
+            "Assault",
+            "Theft",
+            "DrugOffense",
+            "Homicide",
+            "Cybercrime",
+            "Other"
+          ]
+        },
+        "complexity": {
+          "type": "string",
+          "description": "Case complexity (drives document volume).",
+          "x-ms-summary": "Complexity",
+          "enum": [
+            "Low",
+            "Medium",
+            "High"
+          ]
+        },
+        "pages": {
+          "type": "integer",
+          "format": "int32",
+          "description": "Target number of document pages.",
+          "x-ms-summary": "Document Size (pages)"
+        },
+        "seed": {
+          "type": "integer",
+          "format": "int32",
+          "description": "Optional deterministic seed for reproducible demos.",
+          "x-ms-summary": "Seed"
+        }
+      }
+    },
+    "Citation": {
+      "type": "object",
+      "properties": {
+        "documentId": {
+          "type": "string"
+        },
+        "caseId": {
+          "type": "string"
+        },
+        "sourceFile": {
+          "type": "string"
+        },
+        "pageNumber": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "chunkId": {
+          "type": "string"
+        },
+        "documentType": {
+          "type": "string"
+        },
+        "snippet": {
+          "type": "string"
+        },
+        "reference": {
+          "type": "string",
+          "description": "Human-readable reference, e.g. 'police_report.pdf (p.3)'."
+        }
+      }
+    },
+    "Confidence": {
+      "type": "object",
+      "properties": {
+        "score": {
+          "type": "number",
+          "format": "double"
+        },
+        "level": {
+          "type": "string",
+          "description": "High, Medium, or Low."
+        },
+        "rationale": {
+          "type": "string"
+        }
+      }
+    },
+    "SummaryResult": {
+      "type": "object",
+      "properties": {
+        "summary": {
+          "type": "string"
+        },
+        "keyPoints": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "citations": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/Citation"
+          }
+        },
+        "confidence": {
+          "$ref": "#/definitions/Confidence"
+        }
+      }
+    },
+    "TimelineEvent": {
+      "type": "object",
+      "properties": {
+        "title": {
+          "type": "string"
+        },
+        "dateText": {
+          "type": "string"
+        },
+        "citations": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/Citation"
+          }
+        }
+      }
+    },
+    "TimelineResult": {
+      "type": "object",
+      "properties": {
+        "events": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/TimelineEvent"
+          }
+        },
+        "citations": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/Citation"
+          }
+        },
+        "confidence": {
+          "$ref": "#/definitions/Confidence"
+        }
+      }
+    },
+    "BriefingResult": {
+      "type": "object",
+      "properties": {
+        "executiveSummary": {
+          "type": "string"
+        },
+        "keyFindings": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "risks": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "recommendations": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "citations": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/Citation"
+          }
+        },
+        "confidence": {
+          "$ref": "#/definitions/Confidence"
+        }
+      }
+    },
+    "AnswerResult": {
+      "type": "object",
+      "properties": {
+        "question": {
+          "type": "string"
+        },
+        "answer": {
+          "type": "string"
+        },
+        "citations": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/Citation"
+          }
+        },
+        "confidence": {
+          "$ref": "#/definitions/Confidence"
+        },
+        "followUpSuggestions": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "CaseDocumentSummary": {
+      "type": "object",
+      "properties": {
+        "documentId": {
+          "type": "string"
+        },
+        "documentType": {
+          "type": "string"
+        },
+        "title": {
+          "type": "string"
+        },
+        "sourceFile": {
+          "type": "string"
+        },
+        "pageCount": {
+          "type": "integer",
+          "format": "int32"
+        }
+      }
+    },
+    "CaseDetail": {
+      "type": "object",
+      "properties": {
+        "caseId": {
+          "type": "string"
+        },
+        "title": {
+          "type": "string"
+        },
+        "caseType": {
+          "type": "string"
+        },
+        "complexity": {
+          "type": "string"
+        },
+        "status": {
+          "type": "string"
+        },
+        "createdDate": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "documentCount": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "pageCount": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "classification": {
+          "type": "string"
+        },
+        "documents": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/CaseDocumentSummary"
+          }
+        }
+      }
+    },
+    "CitationsResponse": {
+      "type": "object",
+      "properties": {
+        "caseId": {
+          "type": "string"
+        },
+        "count": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "citations": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/Citation"
+          }
+        }
+      }
+    },
+    "GenerateDemoDataResponse": {
+      "type": "object",
+      "properties": {
+        "caseId": {
+          "type": "string"
+        },
+        "documentsGenerated": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "pagesGenerated": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "chunksIndexed": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "indexStatus": {
+          "type": "string"
+        }
+      }
+    }
+  },
+  "securityDefinitions": {
+    "apiKeyHeader": {
+      "type": "apiKey",
+      "in": "header",
+      "name": "Ocp-Apim-Subscription-Key"
+    }
+  },
+  "security": [
+    {
+      "apiKeyHeader": []
+    }
+  ],
+  "x-ms-connector-metadata": [
+    {
+      "propertyName": "Website",
+      "propertyValue": "https://learn.microsoft.com/azure/api-management/"
+    },
+    {
+      "propertyName": "Privacy policy",
+      "propertyValue": "Demonstration connector. No real data."
+    },
+    {
+      "propertyName": "Categories",
+      "propertyValue": "AI;Data"
+    }
+  ]
+}

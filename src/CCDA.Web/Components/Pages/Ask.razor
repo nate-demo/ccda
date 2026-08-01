@@ -1,0 +1,131 @@
+@page "/ask"
+@rendermode InteractiveServer
+@inject CcdaApiClient Api
+
+<PageTitle>Ask — CCDA</PageTitle>
+
+<FictionalDataBanner />
+
+<h1 class="h3">Ask a legal question</h1>
+<p class="text-muted">
+    Grounded Q&amp;A across the case record. Scope to a single case or ask across all ingested
+    cases. Answers are supported by page-level citations and a confidence rating.
+</p>
+
+<div class="row g-2 align-items-end mb-2">
+    <div class="col-md-4">
+        <label class="form-label small mb-1">Case scope</label>
+        <select class="form-select" @bind="selectedCaseId" disabled="@asking">
+            <option value="">All cases</option>
+            @if (cases is not null)
+            {
+                @foreach (var c in cases)
+                {
+                    <option value="@c.CaseId">@c.CaseId — @c.Title</option>
+                }
+            }
+        </select>
+    </div>
+</div>
+
+<div class="input-group mb-3">
+    <input class="form-control" placeholder="Type your question…"
+           @bind="question" @bind:event="oninput" @onkeydown="OnKeyDown" disabled="@asking" />
+    <button class="btn btn-primary" @onclick="AskAsync" disabled="@(asking || string.IsNullOrWhiteSpace(question))">
+        @if (asking)
+        {
+            <span class="spinner-border spinner-border-sm me-1" aria-hidden="true"></span>
+            <span>Asking…</span>
+        }
+        else
+        {
+            <span>Ask</span>
+        }
+    </button>
+</div>
+
+@if (error is not null)
+{
+    <div class="alert alert-danger small">@error</div>
+}
+
+@if (answer is not null)
+{
+    <div class="card">
+        <div class="card-body">
+            <div class="d-flex justify-content-between align-items-start">
+                <h2 class="h6 mb-1">Q: @answer.Question</h2>
+                <ConfidenceBadge Assessment="answer.Confidence" />
+            </div>
+            @if (!string.IsNullOrWhiteSpace(answer.CaseId))
+            {
+                <div class="text-muted small mb-2">Scoped to case @answer.CaseId</div>
+            }
+            <p style="white-space: pre-wrap;">@answer.Answer</p>
+            <CitationList Citations="answer.Citations" />
+            @if (answer.FollowUpSuggestions.Count > 0)
+            {
+                <div class="mt-3 small">
+                    <span class="text-muted">Suggested follow-ups:</span>
+                    <ul class="mb-0">
+                        @foreach (var f in answer.FollowUpSuggestions)
+                        {
+                            <li>@f</li>
+                        }
+                    </ul>
+                </div>
+            }
+        </div>
+    </div>
+}
+
+@code {
+    private IReadOnlyList<CaseDetailResponse>? cases;
+    private string selectedCaseId = string.Empty;
+    private string question = string.Empty;
+    private bool asking;
+    private string? error;
+    private LegalAnswerResult? answer;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            cases = await Api.ListCasesAsync();
+        }
+        catch
+        {
+            cases = [];
+        }
+    }
+
+    private async Task OnKeyDown(KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter" && !asking && !string.IsNullOrWhiteSpace(question))
+        {
+            await AskAsync();
+        }
+    }
+
+    private async Task AskAsync()
+    {
+        asking = true;
+        error = null;
+        try
+        {
+            answer = await Api.AskAsync(new ChatRequest
+            {
+                CaseId = string.IsNullOrWhiteSpace(selectedCaseId) ? null : selectedCaseId,
+                Question = question,
+            });
+        }
+        catch (Exception ex)
+        {
+            error = $"Question failed: {ex.Message}";
+        }
+        finally
+        {
+            asking = false;
+        }
+    }
+}

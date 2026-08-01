@@ -1,0 +1,44 @@
+## .NET / Visual Studio
+bin/
+obj/
+.vs/
+*.user
+*.suo
+*.userprefs
+artifacts/
+[Dd]ebug/
+[Rr]elease/
+x64/
+x86/
+[Bb]uild[Ll]og.*
+project.lock.json
+project.fragment.lock.json
+*.nupkg
+*.snupkg
+
+## Aspire / local run
+**/appsettings.Development.local.json
+.aspire/
+
+## Test / coverage
+TestResults/
+coverage/
+*.coverage
+*.trx
+
+## Environment / secrets (never commit real secrets)
+.env
+*.env.local
+secrets.json
+
+## Generated synthetic data output (kept out of git except curated sample-data/)
+/out/
+/generated-cases/
+
+## OS
+.DS_Store
+Thumbs.db
+
+## IDE
+.idea/
+*.swp

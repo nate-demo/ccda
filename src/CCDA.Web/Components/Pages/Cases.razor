@@ -1,0 +1,108 @@
+@page "/cases"
+@rendermode InteractiveServer
+@inject CcdaApiClient Api
+
+<PageTitle>Cases — CCDA</PageTitle>
+
+<FictionalDataBanner />
+
+<div class="d-flex align-items-center justify-content-between mb-3">
+    <h1 class="h3 mb-0">Cases</h1>
+    <button class="btn btn-primary btn-sm" @onclick="GenerateAsync" disabled="@busy">
+        @if (busy)
+        {
+            <span class="spinner-border spinner-border-sm me-1" aria-hidden="true"></span>
+            <span>Generating…</span>
+        }
+        else
+        {
+            <span><span class="bi bi-plus-lg" aria-hidden="true"></span> Generate demo case</span>
+        }
+    </button>
+</div>
+
+@if (error is not null)
+{
+    <div class="alert alert-danger small">@error</div>
+}
+
+@if (cases is null)
+{
+    <p class="text-muted">Loading…</p>
+}
+else if (cases.Count == 0)
+{
+    <div class="alert alert-info">No cases have been ingested yet. Generate a demo case to begin.</div>
+}
+else
+{
+    <div class="table-responsive">
+        <table class="table table-hover align-middle">
+            <thead>
+                <tr>
+                    <th>Case ID</th>
+                    <th>Title</th>
+                    <th>Type</th>
+                    <th>Status</th>
+                    <th class="text-end">Docs</th>
+                    <th class="text-end">Pages</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var c in cases)
+                {
+                    <tr>
+                        <td class="fw-semibold">@c.CaseId</td>
+                        <td>@c.Title</td>
+                        <td><span class="badge text-bg-light">@c.CaseType</span></td>
+                        <td>@c.Status</td>
+                        <td class="text-end">@c.DocumentCount</td>
+                        <td class="text-end">@c.PageCount</td>
+                        <td class="text-end"><a class="btn btn-outline-primary btn-sm" href="cases/@c.CaseId">Review →</a></td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+}
+
+@code {
+    private IReadOnlyList<CaseDetailResponse>? cases;
+    private bool busy;
+    private string? error;
+
+    protected override Task OnInitializedAsync() => RefreshAsync();
+
+    private async Task RefreshAsync()
+    {
+        try
+        {
+            error = null;
+            cases = await Api.ListCasesAsync();
+        }
+        catch (Exception ex)
+        {
+            error = $"Could not reach the API: {ex.Message}";
+        }
+    }
+
+    private async Task GenerateAsync()
+    {
+        busy = true;
+        error = null;
+        try
+        {
+            await Api.GenerateDemoDataAsync(new GenerateDemoDataRequest { Complexity = CaseComplexity.Medium });
+            await RefreshAsync();
+        }
+        catch (Exception ex)
+        {
+            error = $"Generation failed: {ex.Message}";
+        }
+        finally
+        {
+            busy = false;
+        }
+    }
+}

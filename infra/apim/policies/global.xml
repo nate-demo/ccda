@@ -1,0 +1,39 @@
+<!--
+  CCDA — global (all-APIs) policy.
+  Applies baseline CORS, correlation-id propagation, and a coarse tenant-wide
+  rate limit. API-specific auth and quotas live in api.xml.
+-->
+<policies>
+  <inbound>
+    <cross-origin-resource-sharing allow-credentials="false">
+      <allowed-origins>
+        <origin>*</origin>
+      </allowed-origins>
+      <allowed-methods>
+        <method>GET</method>
+        <method>POST</method>
+        <method>OPTIONS</method>
+      </allowed-methods>
+      <allowed-headers>
+        <header>*</header>
+      </allowed-headers>
+    </cross-origin-resource-sharing>
+    <!-- Ensure every request has a correlation id for end-to-end tracing. -->
+    <set-header name="x-correlation-id" exists-action="skip">
+      <value>@(context.RequestId.ToString())</value>
+    </set-header>
+    <!-- Coarse safety net across the whole gateway. -->
+    <rate-limit calls="1200" renewal-period="60" />
+  </inbound>
+  <backend>
+    <forward-request />
+  </backend>
+  <outbound>
+    <set-header name="x-correlation-id" exists-action="override">
+      <value>@(context.RequestId.ToString())</value>
+    </set-header>
+  </outbound>
+  <on-error>
+    <base />
+  </on-error>
+</policies>

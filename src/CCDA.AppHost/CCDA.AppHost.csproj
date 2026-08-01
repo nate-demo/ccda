@@ -1,0 +1,24 @@
+<Project Sdk="Aspire.AppHost.Sdk/13.3.5">
+
+  <ItemGroup>
+    <ProjectReference Include="..\CCDA.Api\CCDA.Api.csproj" />
+    <ProjectReference Include="..\CCDA.Web\CCDA.Web.csproj" />
+  </ItemGroup>
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <UserSecretsId>a614ea26-d942-422e-9fa4-ad58d7e40449</UserSecretsId>
+    <!--
+      NU1902/NU1903: transitive MessagePack 2.5.192 (pulled in by the Aspire dashboard) carries
+      advisories with no compatible 2.5.x patch; the only fix is MessagePack 3.x, a major bump the
+      Aspire 13.3.x dashboard is not built against. This is a local, dev-time orchestrator only
+      (never deployed / not an external boundary), so the advisory is suppressed here and tracked
+      to be cleared when a future Aspire release ships a patched dashboard dependency.
+    -->
+    <NoWarn>$(NoWarn);NU1902;NU1903</NoWarn>
+  </PropertyGroup>
+
+</Project>

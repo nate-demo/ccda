@@ -1,0 +1,162 @@
+@page "/"
+@rendermode InteractiveServer
+@inject CcdaApiClient Api
+@inject NavigationManager Nav
+
+<PageTitle>CCDA Case Review</PageTitle>
+
+<FictionalDataBanner />
+
+<h1 class="h3">Contoso County District Attorney — AI Case Review</h1>
+<p class="text-muted">
+    A citation-first, retrieval-augmented workspace for reviewing legal case files. Generate a
+    synthetic demo case, then explore grounded summaries, briefings, timelines, and Q&amp;A — every
+    AI response is backed by page-level source citations and a confidence score.
+</p>
+
+<div class="row g-3 mt-1">
+    <div class="col-md-6">
+        <div class="card h-100">
+            <div class="card-body">
+                <h2 class="h5 card-title">Generate a demo case</h2>
+                <p class="card-text small text-muted">
+                    Creates a fully synthetic, watermarked case, indexes it, and validates retrieval.
+                </p>
+
+                <div class="row g-2 align-items-end">
+                    <div class="col-6">
+                        <label class="form-label small mb-1">Complexity</label>
+                        <select class="form-select form-select-sm" @bind="complexity" disabled="@busy">
+                            @foreach (var value in Enum.GetValues<CaseComplexity>())
+                            {
+                                <option value="@value">@value</option>
+                            }
+                        </select>
+                    </div>
+                    <div class="col-6">
+                        <label class="form-label small mb-1">Seed (optional)</label>
+                        <input class="form-control form-control-sm" type="number" @bind="seed" placeholder="e.g. 42" disabled="@busy" />
+                    </div>
+                </div>
+
+                <button class="btn btn-primary btn-sm mt-3" @onclick="GenerateAsync" disabled="@busy">
+                    @if (busy)
+                    {
+                        <span class="spinner-border spinner-border-sm me-1" aria-hidden="true"></span>
+                        <span>Generating…</span>
+                    }
+                    else
+                    {
+                        <span>Generate demo case</span>
+                    }
+                </button>
+
+                @if (lastResult is not null)
+                {
+                    <div class="alert alert-success mt-3 mb-0 small">
+                        Generated <strong>@lastResult.CaseId</strong> — @lastResult.DocumentsGenerated docs,
+                        @lastResult.PagesGenerated pages, @lastResult.ChunksIndexed chunks
+                        (@lastResult.IndexStatus). <a href="cases/@lastResult.CaseId">Open case →</a>
+                    </div>
+                }
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-6">
+        <div class="card h-100">
+            <div class="card-body">
+                <h2 class="h5 card-title">How it works</h2>
+                <ul class="small text-muted mb-0">
+                    <li>Documents are chunked and indexed for hybrid (keyword + vector) retrieval.</li>
+                    <li>Summaries, briefings, and timelines are grounded in retrieved passages.</li>
+                    <li>Every response lists its <em>sources</em> and a <em>confidence</em> rating.</li>
+                    <li>Runs fully offline by default; switch to Azure AI Search / Foundry via config.</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="d-flex align-items-center justify-content-between mt-4 mb-2">
+    <h2 class="h5 mb-0">Recent cases</h2>
+    <a class="btn btn-outline-secondary btn-sm" href="cases">View all</a>
+</div>
+
+@if (error is not null)
+{
+    <div class="alert alert-danger small">@error</div>
+}
+
+@if (cases is null)
+{
+    <p class="text-muted">Loading…</p>
+}
+else if (cases.Count == 0)
+{
+    <p class="text-muted">No cases yet. Generate a demo case to get started.</p>
+}
+else
+{
+    <div class="list-group">
+        @foreach (var c in cases.Take(5))
+        {
+            <a class="list-group-item list-group-item-action d-flex justify-content-between align-items-center"
+               href="cases/@c.CaseId">
+                <span>
+                    <strong>@c.CaseId</strong> — @c.Title
+                    <span class="badge text-bg-light ms-2">@c.CaseType</span>
+                </span>
+                <span class="text-muted small">@c.DocumentCount docs · @c.PageCount pages</span>
+            </a>
+        }
+    </div>
+}
+
+@code {
+    private IReadOnlyList<CaseDetailResponse>? cases;
+    private CaseComplexity complexity = CaseComplexity.Medium;
+    private int? seed;
+    private bool busy;
+    private string? error;
+    private GenerateDemoDataResponse? lastResult;
+
+    protected override Task OnInitializedAsync() => RefreshAsync();
+
+    private async Task RefreshAsync()
+    {
+        try
+        {
+            error = null;
+            cases = await Api.ListCasesAsync();
+        }
+        catch (Exception ex)
+        {
+            error = $"Could not reach the API: {ex.Message}";
+        }
+    }
+
+    private async Task GenerateAsync()
+    {
+        busy = true;
+        error = null;
+        lastResult = null;
+        try
+        {
+            lastResult = await Api.GenerateDemoDataAsync(new GenerateDemoDataRequest
+            {
+                Complexity = complexity,
+                Seed = seed,
+            });
+            await RefreshAsync();
+        }
+        catch (Exception ex)
+        {
+            error = $"Generation failed: {ex.Message}";
+        }
+        finally
+        {
+            busy = false;
+        }
+    }
+}
