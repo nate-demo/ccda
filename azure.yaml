@@ -1,0 +1,29 @@
+# =============================================================================
+# Azure Developer CLI (azd) configuration — CCDA AI Case Review Platform
+#
+# Turnkey Azure path:  azd up
+#
+# azd reads the .NET Aspire AppHost (src/CCDA.AppHost), containerizes the
+# `ccda-api` and `ccda-web` projects with the .NET SDK container build
+# (no Dockerfiles), provisions an Azure Container Apps environment + registry +
+# managed identity, and deploys both apps. On publish the AppHost also
+# provisions the validated dependency Bicep (infra/main.bicep: Azure AI Search,
+# Azure OpenAI/Foundry, monitoring) and points the API at them via managed
+# identity — no keys in configuration.
+#
+# APIM is OFF by default in `azd up` (Developer SKU takes ~30-45 min). Deploy it
+# separately with the Bicep in infra/ when you need the API Management front door.
+#
+# FOR DEMONSTRATION PURPOSES ONLY.
+# =============================================================================
+# yaml-language-server: $schema=https://raw.githubusercontent.com/Azure/azure-dev/main/schemas/v1.0/azure.yaml.json
+
+name: ccda-demo
+metadata:
+  template: ccda-demo@0.1.0
+
+services:
+  app:
+    language: dotnet
+    project: ./src/CCDA.AppHost/CCDA.AppHost.csproj
+    host: containerapp

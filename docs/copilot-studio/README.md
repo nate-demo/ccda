@@ -77,13 +77,36 @@ Use **three Power Platform environments** aligned to the Azure environments:
 
 ## 4. Import the custom connector
 
+### 4.0 Create the APIM `ccda` product + subscription key
+
+The connector authenticates to APIM with a **subscription key**. Create a product scoped to the
+`ccda` API and grab its key (portal path shown; `az apim` equivalents in parentheses):
+
+1. In the **Azure portal** open your API Management instance → **Products** → **+ Add**.
+   - **Display name / Id:** `ccda`
+   - **Published:** ✔  ·  **Requires subscription:** ✔  ·  (optionally **Requires approval:** off)
+   - Add the **CCDA** API to the product.
+   *(CLI: `az apim product create ... --product-id ccda --subscription-required true --state published`
+   then `az apim product api add --product-id ccda --api-id ccda`.)*
+2. Go to **Subscriptions** → **+ Add subscription**.
+   - **Scope:** Product → `ccda`  ·  **Name:** `ccda-copilot-studio`
+   *(CLI: `az apim subscription create --scope "/products/ccda" --name ccda-copilot-studio --display-name "CCDA Copilot Studio"`.)*
+3. On the new subscription choose **⋯ → Show/copy keys** and copy the **Primary key**. This is the
+   `Ocp-Apim-Subscription-Key` value you supply when creating the connection (step 5 below).
+
+> Least privilege: keep this subscription scoped to the `ccda` product only, and rotate the key
+> on a schedule (regenerate under the same subscription, then update the connection).
+
+### 4.1 Import the connector
+
 1. In **Power Apps** (`make.powerapps.com`) → **Custom connectors** → **New → Import an OpenAPI file**.
 2. Upload `custom-connector/apiDefinition.swagger.json`.
 3. On the **General** tab, set **Host** to your APIM gateway host
    (`<name>.azure-api.net`) and keep **Base URL** `/ccda`.
 4. On **Security**, confirm **API Key**, header `Ocp-Apim-Subscription-Key`
    (or switch to **OAuth 2.0** per §3).
-5. **Create connector**, then **Test** with a subscription key and a known case id.
+5. **Create connector**, then **Test** — create a connection using the subscription key from
+   §4.0 and call an operation with a known case id.
 
 `custom-connector/apiProperties.json` documents the connection parameters and publisher
 metadata for `pac connector create`/`update` if you prefer CLI-driven ALM.

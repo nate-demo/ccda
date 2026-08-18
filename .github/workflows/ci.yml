@@ -133,3 +133,80 @@ jobs:
           az bicep install
           az bicep build --file infra/main.bicep
           echo "Bicep build succeeded — templates are valid."
+
+  azd-graph:
+    # Guards the turnkey `azd up` path without a live deploy: generating the Aspire
+    # manifest resolves the entire azd graph (dependency Bicep reference, managed
+    # identity, and the Azure provider env wiring injected into ccda-api on publish),
+    # and emits the generated Container Apps Bicep, which we then lint.
+    name: azd graph (Aspire manifest)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          fetch-depth: 1
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
+        with:
+          global-json-file: global.json
+
+      - name: Cache NuGet packages
+        uses: actions/cache@668228422ae6a00e4ad889ee87cd7109ec5666a7 # v5.0.4
+        with:
+          path: ~/.nuget/packages
+          key: ${{ runner.os }}-nuget-${{ hashFiles('**/*.csproj', 'Directory.Build.props', 'Directory.Packages.props') }}
+          restore-keys: |
+            ${{ runner.os }}-nuget-
+
+      - name: Restore
+        run: dotnet restore CCDA.slnx
+
+      - name: Generate Aspire deployment manifest
+        shell: bash
+        run: |
+          mkdir -p "${{ github.workspace }}/artifacts/manifest"
+          dotnet run --project src/CCDA.AppHost/CCDA.AppHost.csproj --configuration Release --no-restore -- \
+            --publisher manifest \
+            --output-path "${{ github.workspace }}/artifacts/manifest/aspire-manifest.json"
+
+      - name: Verify manifest wiring
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          import json, sys
+          with open("artifacts/manifest/aspire-manifest.json") as f:
+              m = json.load(f)["resources"]
+          errors = []
+          deps = m.get("ccda-deps", {})
+          if deps.get("path") != "../../infra/main.bicep":
+              errors.append(f"ccda-deps must reference infra/main.bicep, got {deps.get('path')!r}")
+          if deps.get("params", {}).get("deployApim") is not False:
+              errors.append("ccda-deps must pass deployApim=false for the fast azd path")
+          env = m.get("ccda-api", {}).get("env", {})
+          required = ["Azure__Search__Endpoint", "Azure__Foundry__Provider",
+                      "Azure__Foundry__Endpoint", "Azure__Foundry__ChatDeployment",
+                      "Ccda__Embeddings__Provider", "Ccda__Embeddings__Endpoint",
+                      "Ccda__Embeddings__Deployment", "APPLICATIONINSIGHTS_CONNECTION_STRING"]
+          missing = [k for k in required if k not in env]
+          if missing:
+              errors.append(f"ccda-api is missing Azure env wiring: {missing}")
+          if errors:
+              print("azd graph validation FAILED:")
+              for e in errors:
+                  print("  -", e)
+              sys.exit(1)
+          print("azd graph validation passed — deps Bicep reference + ccda-api Azure env wiring intact.")
+          PY
+
+      - name: Lint generated Container Apps Bicep
+        shell: bash
+        run: |
+          az bicep install
+          for f in artifacts/manifest/*.module.bicep; do
+            echo "Linting $f"
+            az bicep build --file "$f"
+          done
+          echo "Generated Container Apps Bicep is valid."

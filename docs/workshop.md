@@ -101,9 +101,18 @@ the DI extensions. Map the config keys:
 
 ## Module 5 (optional) — Go to Azure (20 min)
 
-Follow [deployment.md](deployment.md) §4: validate `infra/main.bicep`, deploy to a resource
-group, then map outputs to config and flip the provider switches. Re-run Module 3 and confirm
-the workflows now use Azure AI Search + Azure OpenAI (watch the Application Insights traces).
+Fastest path — one command provisions Container Apps + Search + Foundry + monitoring and
+deploys the running API/Web (see [deployment.md](deployment.md) §4.1):
+
+```powershell
+azd up
+```
+
+Prefer to deploy just the dependencies and host compute yourself? Follow
+[deployment.md](deployment.md) §4.2: validate `infra/main.bicep`, deploy to a resource group,
+then map outputs to config and flip the provider switches. Either way, re-run Module 3 and
+confirm the workflows now use Azure AI Search + Azure OpenAI (watch the Application Insights
+traces).
 
 ✅ **Checkpoint:** the same requests now run on Azure with no app code changes.
 

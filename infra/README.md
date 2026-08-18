@@ -5,6 +5,11 @@ AI Case Review Platform demo. Everything here is validated offline with the Bice
 compiler; it is **not** auto-deployed. Provision it into a demo subscription when you
 want to run the platform against real Azure services instead of the local mock providers.
 
+> **Turnkey path:** `azd up` (from the repo root) provisions this Bicep **and** the API/Web
+> compute (Azure Container Apps) in one command — see [`docs/deployment.md`](../docs/deployment.md)
+> §4.1. This folder is the **dependency layer** it reuses; the steps below are the **manual**
+> path for hosting compute yourself or deploying resources without `azd`.
+
 > **FOR DEMONSTRATION PURPOSES ONLY — FICTIONAL CASE DATA.**
 > AI assists attorney review; it never replaces attorney judgment.
 
@@ -25,6 +30,12 @@ The workload identity is granted least-privilege **data-plane** roles:
 
 No account keys are placed in application configuration — both services set
 `disableLocalAuth: true` and the app authenticates with Entra ID via the managed identity.
+
+> **Bring-your-own identity.** Pass `workloadPrincipalId=<principalId>` to grant the RBAC roles
+> to an identity you already have (e.g. the one `azd`/Aspire provisions for the container apps)
+> instead of creating one here. When the parameter is empty (the default), `identity.bicep`
+> creates a self-contained user-assigned identity and `workloadClientId` is emitted for you to
+> assign to the compute. The `azd up` path uses the bring-your-own form automatically.
 
 ## Validate offline
 
