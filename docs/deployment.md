@@ -11,8 +11,10 @@ Two paths: **run locally** (no Azure needed — the default) and **deploy to Azu
 | Tool | Version | Notes |
 | --- | --- | --- |
 | .NET SDK | **10.0** (LTS) | `dotnet --version` — pinned in `global.json`. |
-| Azure CLI | latest | Only for Azure deployment / Bicep validation. |
+| Azure Developer CLI (`azd`) | latest | Turnkey `azd up` deploy (§4.1). Install: `winget install microsoft.azd`. |
+| Azure CLI | latest | Only for the manual Bicep path / offline validation. |
 | Bicep | 0.43+ | `az bicep version`; used to validate `infra/`. |
+| Docker | latest | Only for `azd up` — builds the API/Web container images. |
 | Power Platform CLI (`pac`) | latest | Only for the Copilot Studio connector ALM. |
 
 The .NET Aspire AppHost uses the NuGet-based Aspire SDK — **no separate workload install** is
@@ -79,13 +81,59 @@ dotnet test CCDA.slnx
 
 ## 4. Deploy to Azure
 
-### 4.1 Validate the templates (offline)
+There are two ways to get to Azure:
+
+- **§4.1 Turnkey — `azd up`** (recommended): one command provisions **everything**
+  (Container Apps for the API + Web, Azure AI Search, Azure OpenAI, monitoring, a managed
+  identity) and deploys the running apps. No Dockerfiles, no config hand-mapping.
+- **§4.2 Manual — Bicep only**: provision just the dependency resources with `az deployment
+  group create` and host the API/Web yourself (App Service / Container Apps). Use this if you
+  can't run `azd`/Docker or want to deploy compute separately.
+
+### 4.1 Turnkey deploy with `azd up` (recommended)
+
+The .NET Aspire AppHost (`src/CCDA.AppHost`) is the deployment model. `azd` reads it,
+**containerizes `ccda-api` + `ccda-web` with the .NET SDK container build (no Dockerfiles)**,
+provisions an Azure Container Apps environment + registry + managed identity, reuses the
+validated dependency Bicep in `infra/` (Search, Foundry, monitoring), and wires the deployed
+API to Azure via the managed identity — **no keys in configuration**.
+
+```powershell
+# from the repo root — first run prompts for subscription, region, and env name
+azd up
+```
+
+That's it. `azd` prints the API and Web URLs when it finishes. Because the AppHost injects the
+Azure endpoints + provider switches into the API container app on publish, the deployed app
+uses Azure AI Search + Azure OpenAI automatically (the offline mock providers are only used
+when you run locally).
+
+**Notes**
+
+- **APIM is intentionally OFF** in `azd up` (the Developer SKU adds ~30-45 min). Deploy the API
+  Management front door separately with the manual Bicep path below when you need it.
+- **Managed identity, not keys.** A single user-assigned identity is attached to both container
+  apps and granted the data-plane roles (Search Index Data Contributor + Service Contributor,
+  Cognitive Services OpenAI User); `DefaultAzureCredential` uses it at runtime.
+- **Validate offline** before deploying (no subscription needed):
+  ```powershell
+  az bicep build --file infra/main.bicep                 # dependency templates
+  dotnet run --project src/CCDA.AppHost -- `             # azd deployment manifest
+    --publisher manifest --output-path ./artifacts/manifest.json
+  ```
+- **Tear down:** `azd down --purge`.
+
+### 4.2 Manual — provision dependencies with Bicep
+
+Use this when you want to host the API/Web yourself or deploy the resources without `azd`.
+
+#### 4.2.1 Validate the templates (offline)
 
 ```powershell
 az bicep build --file infra/main.bicep
 ```
 
-### 4.2 Provision
+#### 4.2.2 Provision
 
 ```powershell
 az group create --name rg-ccda-demo --location eastus2
@@ -99,10 +147,12 @@ az deployment group create `
 > APIM (Developer SKU) takes ~30-45 minutes. For infra-only smoke tests pass
 > `deployApim=false`.
 
-### 4.3 Point the app at Azure
+#### 4.2.3 Point the app at Azure
 
-Map the deployment outputs to configuration and flip the provider switches. See the mapping
-table and provider notes in [`infra/README.md`](../infra/README.md):
+Map the deployment outputs to configuration and flip the provider switches. A copy-paste
+starting point is in [`docs/appsettings.Azure.sample.json`](appsettings.Azure.sample.json)
+(appsettings form) and [`.env.example`](../.env.example) (environment-variable form). Full
+mapping table + provider notes: [`infra/README.md`](../infra/README.md).
 
 - `Azure:Search:Endpoint` ← `searchEndpoint`
 - `Azure:Foundry:Provider=AzureOpenAI`, `Azure:Foundry:Endpoint` ← `foundryEndpoint`,
@@ -115,11 +165,23 @@ table and provider notes in [`infra/README.md`](../infra/README.md):
 Leave the `ApiKey` values empty so both services authenticate with the managed identity
 (`DefaultAzureCredential`) — the deployed Search + OpenAI resources have local auth disabled.
 
-### 4.4 Copilot Studio
+#### 4.2.4 Wire APIM to the backend (if deployed)
+
+APIM routes to the URL in the `apiBackendUrl` parameter (default placeholder
+`https://ccda-api.azurewebsites.net`). After the API is hosted, redeploy with
+`apiBackendUrl` set to its real base URL — for a Container App:
+
+```powershell
+az containerapp show -g rg-ccda-demo -n <api-app> --query properties.configuration.ingress.fqdn -o tsv
+# then re-run the deployment with --parameters apiBackendUrl=https://<fqdn>
+```
+
+### 4.3 Copilot Studio
 
 Import the custom connector and reproduce the topics per
 [`docs/copilot-studio/README.md`](copilot-studio/README.md). Set the connector host to the
-APIM gateway and supply a `ccda`-product subscription key.
+APIM gateway and supply a `ccda`-product subscription key (see that guide §4.0 for creating the
+product + key).
 
 ---
 

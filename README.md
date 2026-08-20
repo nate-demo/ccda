@@ -47,6 +47,18 @@ See **[`docs/demo.md`](docs/demo.md)** for the scripted walkthrough,
 **[`docs/deployment.md`](docs/deployment.md)** for local + Azure deployment and config mapping,
 and **[`docs/architecture.md`](docs/architecture.md)** for the Mermaid architecture diagrams.
 
+### Deploy to Azure — one command
+
+```powershell
+# provisions Container Apps + AI Search + Foundry + monitoring and deploys the API + Web
+azd up
+```
+
+Requires the [Azure Developer CLI](https://aka.ms/azd) + Docker. The Aspire AppHost
+containerizes both apps (no Dockerfiles) and points them at Azure via managed identity — no keys
+in config. Full details, offline validation, and the manual Bicep-only path:
+[`docs/deployment.md`](docs/deployment.md) §4.
+
 ## Architecture
 
 ```
@@ -66,7 +78,7 @@ Aspire AppHost orchestrates everything + OpenTelemetry dashboard.
 
 | Path | Contents |
 | --- | --- |
-| [`src/`](src) | The 9 .NET projects (see status table below). |
+| [`src/`](src) | The 10 .NET projects (see status table below). |
 | [`infra/`](infra) | Bicep for AI Search, Foundry, APIM + core, and APIM policies / OpenAPI. |
 | [`docs/`](docs) | Architecture, deployment, facilitator, workshop, demo, and Copilot Studio guides. |
 | [`sample-data/`](sample-data) | Committed deterministic seed-42 artifacts + regeneration guide. |

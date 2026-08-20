@@ -5,6 +5,17 @@
     <ProjectReference Include="..\CCDA.Web\CCDA.Web.csproj" />
   </ItemGroup>
 
+  <!--
+    Azure hosting: used ONLY on publish (azd up) to provision the dependency
+    Bicep + a shared managed identity for the deployed container apps. Running
+    the AppHost locally never touches Azure (see the IsPublishMode guard in
+    AppHost.cs), so the offline demo needs no Azure subscription.
+  -->
+  <ItemGroup>
+    <PackageReference Include="Aspire.Hosting.Azure" Version="13.3.5" />
+    <PackageReference Include="Aspire.Hosting.Azure.AppContainers" Version="13.3.5" />
+  </ItemGroup>
+
   <PropertyGroup>
     <OutputType>Exe</OutputType>
     <TargetFramework>net10.0</TargetFramework>
